@@ -1,0 +1,16 @@
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore database files
+*.db
+*.table
+sql.log
+
+# Ignore service files
+.service/
+
+# Ignore node modules if any
+node_modules/
+package-lock.json 

@@ -1,0 +1,249 @@
+[[extend 'layout.html']]
+
+[[block page_head]]
+<!-- FullCalendar CSS -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+<style>
+    .reservation-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .reservation-row {
+        display: flex;
+        gap: 30px;
+        flex-wrap: wrap;
+    }
+
+    .calendar-section {
+        flex: 2;
+        min-width: 600px;
+    }
+
+    .booking-section {
+        flex: 1;
+        min-width: 350px;
+        background: #fff;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        height: fit-content;
+    }
+
+    .booking-form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group label {
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+
+    .btn {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #0056b3;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #545b62;
+    }
+
+    .availability-info {
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 4px;
+        display: none;
+    }
+
+    .availability-available {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .availability-unavailable {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .price-display {
+        font-size: 18px;
+        font-weight: bold;
+        color: #007bff;
+        margin: 10px 0;
+    }
+
+    .room-info {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 10px 0;
+    }
+
+    .calendar-wrapper {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #calendar {
+        max-width: 100%;
+    }
+
+    .alert {
+        padding: 12px 15px;
+        margin-bottom: 15px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+    }
+
+    .alert-success {
+        color: #155724;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+    }
+
+    .alert-danger {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+    }
+</style>
+[[end]]
+
+<div class="reservation-container">
+    <div class="reservation-header">
+        <div class="header-content">
+            <h1>Hotel Reservations</h1>
+            <p>Select dates on the calendar and choose a room to make your reservation.</p>
+        </div>
+        <div class="header-actions">
+            <a href="[[=URL('manager/rooms')]]" class="btn btn-success">Edit Room Configuration</a>
+            <a href="[[=URL('manager/customers')]]" class="btn btn-info">Customer Search</a>
+        </div>
+    </div>
+
+    <div class="reservation-row">
+        <div class="calendar-section">
+            <div class="calendar-wrapper">
+                <div id='calendar'></div>
+            </div>
+        </div>
+
+        <div class="booking-section">
+            <h3>Make a Reservation</h3>
+
+            <div id="alert-container"></div>
+
+            <form id="booking-form" class="booking-form">
+                <div class="form-group">
+                    <label for="room_id">Select Room:</label>
+                    <select id="room_id" name="room_id" required>
+                        <option value="">Choose a room...</option>
+                        [[for room in rooms:]]
+                        <option value="[[=room.id]]" data-beds="[[=room.number_of_beds]]"
+                            data-price="[[=room.price_per_night]]" data-amenities="[[=room.amenities]]">
+                            Room [[=room.id]] - [[=room.number_of_beds]] bed(s) - $[[=room.price_per_night]]/night
+                        </option>
+                        [[pass]]
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="customer_identifier">Customer (Name or Email):</label>
+                    <input type="text" id="customer_identifier" name="customer_identifier"
+                        placeholder="Enter customer name or email..." required>
+                </div>
+
+                <div class="room-info" id="room-info" style="display: none;">
+                    <h4>Room Details</h4>
+                    <div id="room-details"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="start_date">Check-in Date:</label>
+                    <input type="date" id="start_date" name="start_date" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="end_date">Check-out Date:</label>
+                    <input type="date" id="end_date" name="end_date" required>
+                </div>
+
+                <div class="availability-info" id="availability-info">
+                    <div id="availability-message"></div>
+                    <div class="price-display" id="total-cost"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Special Requests (Optional):</label>
+                    <textarea id="notes" name="notes" rows="3"
+                        placeholder="Any special requests or notes..."></textarea>
+                </div>
+
+                <button type="button" id="check-availability" class="btn btn-secondary">Check Availability</button>
+                <button type="submit" id="make-reservation" class="btn btn-primary" disabled>Make Reservation</button>
+            </form>
+        </div>
+    </div>
+</div>
+</div>
+
+[[block page_scripts]]
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+<script>
+    window.calendarEventsUrl = '[[=URL("api/calendar/reservations")]]';
+    window.checkAvailabilityUrl = '[[=URL("api/check-availability")]]';
+    window.makeReservationUrl = '[[=URL("api/make-reservation")]]';
+</script>
+
+<script src="js/reservations.js"></script>
+[[end]]

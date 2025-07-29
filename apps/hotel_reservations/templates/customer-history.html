@@ -1,0 +1,309 @@
+[[extend 'layout.html']]
+
+[[block page_head]]
+<style>
+    .history-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .lookup-form {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+
+    .results-section {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        display: none;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+
+    .btn {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #0056b3;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+        margin-left: 10px;
+    }
+
+    .btn-secondary:hover {
+        background: #545b62;
+    }
+
+    .alert {
+        padding: 12px 15px;
+        margin-bottom: 15px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+    }
+
+    .alert-success {
+        color: #155724;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+    }
+
+    .alert-danger {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+    }
+
+    .customer-info {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .reservation-card {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background: #fafbfc;
+    }
+
+    .reservation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .reservation-id {
+        font-weight: bold;
+        color: #007bff;
+    }
+
+    .reservation-status {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .status-completed {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-upcoming {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .status-current {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .no-reservations {
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+        margin: 20px 0;
+    }
+</style>
+[[end]]
+
+<div class="history-container">
+    <div class="lookup-form">
+        <h2 class="text-center">View Your Reservation History</h2>
+        <p class="text-center">Enter your email address to view your reservations</p>
+
+        <div id="alert-container"></div>
+
+        <form id="lookup-form">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="Enter your registered email">
+            </div>
+
+            <div class="text-center">
+                <button type="submit" class="btn btn-primary">View My Reservations</button>
+                <a href="[[=URL('customer/register')]]" class="btn btn-secondary">New Customer? Register</a>
+            </div>
+        </form>
+    </div>
+
+    <div id="results-section" class="results-section">
+        <h3>Your Reservation History</h3>
+
+        <div id="customer-info" class="customer-info"></div>
+
+        <div id="reservations-list"></div>
+    </div>
+</div>
+
+[[block page_scripts]]
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('lookup-form');
+        const alertContainer = document.getElementById('alert-container');
+        const resultsSection = document.getElementById('results-section');
+        const customerInfo = document.getElementById('customer-info');
+        const reservationsList = document.getElementById('reservations-list');
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const formData = {
+                email: document.getElementById('email').value
+            };
+
+            fetch('[[=URL("api/customer/history")]]', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayResults(data);
+                        resultsSection.style.display = 'block';
+                        clearAlert();
+                    } else {
+                        showAlert(`Error: ${data.error}`, 'danger');
+                        resultsSection.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Failed to retrieve reservations. Please try again.', 'danger');
+                    resultsSection.style.display = 'none';
+                });
+        });
+
+        function displayResults(data) {
+            customerInfo.innerHTML = `
+            <h4>Customer Information</h4>
+            <p><strong>Name:</strong> ${data.customer.name}</p>
+            <p><strong>Email:</strong> ${data.customer.email}</p>
+            <p><strong>Phone:</strong> ${data.customer.phone_number || 'Not provided'}</p>
+            <p><strong>Address:</strong> ${data.customer.address || 'Not provided'}</p>
+        `;
+
+            if (data.reservations.length === 0) {
+                reservationsList.innerHTML = '<div class="no-reservations">No reservations found</div>';
+                return;
+            }
+
+            let reservationsHtml = '';
+            data.reservations.forEach(reservation => {
+                const status = getReservationStatus(reservation.start_date, reservation.end_date);
+
+                reservationsHtml += `
+                <div class="reservation-card">
+                    <div class="reservation-header">
+                        <span class="reservation-id">Reservation #${reservation.id}</span>
+                        <span class="reservation-status status-${status.class}">${status.text}</span>
+                    </div>
+                    <div class="reservation-details">
+                        <p><strong>Room:</strong> Room ${reservation.room_id} (${reservation.room_beds} bed${reservation.room_beds > 1 ? 's' : ''})</p>
+                        <p><strong>Dates:</strong> ${formatDate(reservation.start_date)} to ${formatDate(reservation.end_date)}</p>
+                        <p><strong>Total Cost:</strong> $${reservation.total_cost.toFixed(2)}</p>
+                        <p><strong>Amenities:</strong> ${reservation.room_amenities}</p>
+                        ${reservation.notes ? `<p><strong>Notes:</strong> ${reservation.notes}</p>` : ''}
+                        <p><strong>Booked on:</strong> ${formatDate(reservation.created_on)}</p>
+                    </div>
+                </div>
+            `;
+            });
+
+            reservationsList.innerHTML = reservationsHtml;
+        }
+
+        function getReservationStatus(startDate, endDate) {
+            const today = new Date();
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            if (end < today) {
+                return { class: 'completed', text: 'Completed' };
+            } else if (start <= today && end >= today) {
+                return { class: 'current', text: 'Current Stay' };
+            } else {
+                return { class: 'upcoming', text: 'Upcoming' };
+            }
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        function showAlert(message, type) {
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+
+        function clearAlert() {
+            alertContainer.innerHTML = '';
+        }
+    });
+</script>
+[[end]]
